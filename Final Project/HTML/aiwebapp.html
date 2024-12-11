@@ -1,0 +1,299 @@
+<!--Create the game minefield-->
+<!--To do
+    1. Link this page to other HTML pages
+    2. Make sure the code works
+    3. Keep prompting AI until it gets it right
+    
+    Instructions from my educator:
+    A small web app created in collaboration with AI: 
+Be creative. Here are some examples of what other students have done. Keep in mind that the first three are fairly basic. To merit full credit on an app like one of these first three would require you to creatively contribute (either in style or function) to what the AI comes up with to go beyond a basic app.
+Riddle generator
+Joke generator
+Number guessing game
+Snake game
+Wordle clone
+Try to keep the code for this app in a single page (e.g., styles, html, and scripts all on one page).
+Y- This page should be accessible via a link from the scratch page.
+Rarely will the AI get it right on the first attempt. Feel free to iterate and refine with the AI until it meets your expectations. You are also encouraged to edit the AI solution to be just how you want it.-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minefield Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 20px;
+        }
+        #minefield {
+            display: grid;
+            grid-template-columns: repeat(10, 40px);
+            gap: 5px;
+            justify-content: center;
+        }
+        .cell {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #ccc;
+            background-color: #f0f0f0;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            user-select: none;
+        }
+        .cell.mine {
+            background-color: red;
+        }
+        .cell.safe {
+            background-color: rgb(0, 81, 255);
+        }
+        .hidden {
+            background-color: #ccc;
+        }
+        .flag {
+            background-color: #fffb00;
+            cursor: not-allowed;
+        }
+        #timer, #score {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        #game-over {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border: 2px solid #ccc;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            text-align: center;
+        }
+        #game-over h2 {
+            margin-bottom: 20px;
+        }
+        #game-over button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Minefield Game</h1>
+    <p>Left-click to reveal a cell. Right-click to place or remove a flag.</p>
+    <div id="timer">Time: 0 seconds</div>
+    <div id="score">Score: 0</div>
+    <div id="minefield"></div>
+    <div id="game-over">
+        <h2>Game Over</h2>
+        <p>You hit a mine!</p>
+        <button onclick="resetGame()">Reset Game</button>
+    </div>
+    <script>
+        // Game settings
+        const rows = 10;
+        const cols = 10;
+        const minesCount = 20;
+
+        const minefield = document.getElementById("minefield");
+        const timerElement = document.getElementById("timer");
+        const scoreElement = document.getElementById("score");
+        const gameOverBox = document.getElementById("game-over");
+        const grid = [];
+        const mines = new Set();
+        let timeElapsed = 0;
+        let timerInterval = null;
+        let score = 0;
+
+        // Create the minefield grid
+        function initGame() {
+            minefield.innerHTML = "";
+            grid.length = 0;
+            mines.clear();
+            timeElapsed = 0;
+            score = 0;
+            updateScore(0);
+            timerElement.textContent = `Time: ${timeElapsed} seconds`;
+            gameOverBox.style.display = "none";
+
+            // Generate the grid
+            for (let r = 0; r < rows; r++) {
+                grid[r] = [];
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement("div");
+                    cell.classList.add("cell", "hidden");
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+
+                    // Left-click to reveal
+                    cell.addEventListener("click", () => revealCell(r, c));
+
+                    // Right-click to toggle flag
+                    cell.addEventListener("contextmenu", (e) => {
+                        e.preventDefault(); // Prevent the context menu
+                        toggleFlag(r, c);
+                    });
+
+                    minefield.appendChild(cell);
+                    grid[r][c] = cell;
+                }
+            }
+
+            // Place mines randomly
+            while (mines.size < minesCount) {
+                const randomIndex = Math.floor(Math.random() * rows * cols);
+                const row = Math.floor(randomIndex / cols);
+                const col = randomIndex % cols;
+                mines.add(`${row},${col}`);
+            }
+
+            // Start the timer
+            startTimer();
+        }
+
+        // Update the score
+        function updateScore(points) {
+            score += points;
+            scoreElement.textContent = `Score: ${score}`;
+        }
+
+        // Toggle a flag on a cell
+        function toggleFlag(row, col) {
+            const cell = grid[row][col];
+            if (!cell.classList.contains("hidden")) return; // Cannot flag revealed cells
+
+            if (cell.classList.contains("flag")) {
+                cell.classList.remove("flag");
+                cell.textContent = "";
+            } else {
+                cell.classList.add("flag");
+                cell.textContent = "🚩";
+            }
+        }
+
+        // Reveal a cell
+        function revealCell(row, col) {
+            const cell = grid[row][col];
+            if (!cell.classList.contains("hidden") || cell.classList.contains("flag")) return; // Ignore flagged or already revealed cells
+
+            cell.classList.remove("hidden");
+
+            if (mines.has(`${row},${col}`)) {
+                cell.classList.add("mine");
+                stopTimer();
+                revealAllMines();
+                displayGameOver();
+            } else {
+                cell.classList.add("safe");
+                const adjacentMines = countAdjacentMines(row, col);
+                updateScore(10); // +10 points for a safe cell
+                if (adjacentMines > 0) {
+                    cell.textContent = adjacentMines;
+                } else {
+                    // Reveal surrounding cells if no adjacent mines
+                    revealSurroundingCells(row, col);
+                }
+            }
+
+            // Check for victory
+            if (isVictory()) {
+                const bonus = 1000 - timeElapsed; // Bonus points based on time
+                updateScore(bonus);
+                alert(`Congratulations! You cleared the minefield in ${timeElapsed} seconds with a score of ${score}.`);
+                stopTimer();
+            }
+        }
+
+        // Count adjacent mines
+        function countAdjacentMines(row, col) {
+            let count = 0;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    const nr = row + dr;
+                    const nc = col + dc;
+                    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && mines.has(`${nr},${nc}`)) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        // Reveal surrounding cells
+        function revealSurroundingCells(row, col) {
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    const nr = row + dr;
+                    const nc = col + dc;
+                    if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+                        revealCell(nr, nc);
+                    }
+                }
+            }
+        }
+
+        // Reveal all mines
+        function revealAllMines() {
+            mines.forEach((mine) => {
+                const [row, col] = mine.split(",").map(Number);
+                const cell = grid[row][col];
+                cell.classList.remove("hidden");
+                cell.classList.add("mine");
+            });
+        }
+
+        // Check for victory
+        function isVictory() {
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = grid[r][c];
+                    if (cell.classList.contains("hidden") && !mines.has(`${r},${c}`)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        // Display Game Over box
+        function displayGameOver() {
+            gameOverBox.style.display = "block";
+        }
+
+        // Start the timer
+        function startTimer() {
+            stopTimer(); // Reset any existing timer
+            timerInterval = setInterval(() => {
+                timeElapsed++;
+                timerElement.textContent = `Time: ${timeElapsed} seconds`;
+            }, 1000);
+        }
+
+        // Stop the timer
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        // Reset the game
+        function resetGame() {
+            stopTimer();
+            initGame();
+        }
+
+        // Initialize the game
+        initGame();
+    </script>
+</body>
+</html>
+

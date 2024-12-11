@@ -1,0 +1,40 @@
+.title {
+    background-color: lightgrey;
+  }
+.sidebar {
+  background-color: white;
+}
+  body{
+    background-color: black;
+    color: white;
+    font-family: 'Courier New', Courier, monospace;
+}
+h1, h2, h3, h4, h5, h6{
+    color:blue;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-style: italic;
+}
+
+.main-content {
+    margin-left:20px;
+    padding: 20px;
+}
+
+
+.navbar {
+    padding: 10px;
+    display: flex;
+    color: teal;
+    background-color: white;
+}
+
+.box-model{
+    padding: 15px;
+    background-color: lightblue;
+    border: 50px;
+    margin: 50px;
+}
+
+.tableauPlaceholder{
+  padding: 20px;
+}
